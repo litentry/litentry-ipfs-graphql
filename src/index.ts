@@ -5,7 +5,6 @@ const IPFS = require('ipfs')
 
 const typeDefs = `
   type Query {
-    hello(name: String): String
     registerIdentity(identityId: String): String
     determineAddress(identityId: String): String
   }
@@ -41,10 +40,6 @@ let isLocked: boolean = false;
 
 const resolvers = {
   Query: {
-    hello: (_, { name }) => {
-      const returnValue = `Hello ${name || 'World!'}`
-      return returnValue
-    },
     registerIdentity: async (_, {identityId}) => {
       if(isLocked) {
         return 'please try again later, db in using'
@@ -57,14 +52,19 @@ const resolvers = {
         const db = await orbitDb.eventlog(identityId, {
           accessController
         })
-        db.events.on('peer.exchanged', async (peer, address, heads) => {
-          console.log('data exchanged!');
-          console.log('address', address, 'head', 'head')
-          await db.close();
-          await orbitDb.disconnect();
-          isLocked = false
-        } );
+        // db.events.on('peer.exchanged', async (peer, address, heads) => {
+        //   console.log('data exchanged!');
+        //   console.log('address', address, 'head', 'head')
+        //   await db.close();
+        //   await orbitDb.disconnect();
+        //   isLocked = false
+        // } );
         const address = db.address.toString()
+        setTimeout(async ()=> {
+            await db.close();
+            await orbitDb.disconnect();
+            isLocked = false
+        }, 5000)
         await db.load();
         const hash = await db.add({name: 'identity Created'})
         console.log('hash is', hash);
@@ -74,7 +74,6 @@ const resolvers = {
         console.log('error' + e);
         return 'please try again later, db in using'
       }
-// should always return same identity if you use the same keystore and id
     },
     determineAddress : async(_, {identityId}) => {
       if(isLocked) {
@@ -102,7 +101,12 @@ const server = new GraphQLServer({
 async function start() {
   try {
     ipfs = await IPFS.create(config.ipfs);
-    await server.start(() => console.log('Server is running on http://localhost:4000'))
+    await server.start({
+      port: 4000,
+      endpoint: '/graphql',
+      getEndpoint: true,
+      playground: '/playground',
+    }, () => console.log('Server is running on http://localhost:4000'))
   } catch (e) {
     console.log('init error is', e)
   }
