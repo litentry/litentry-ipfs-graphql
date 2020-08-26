@@ -1,13 +1,13 @@
 import { GraphQLServer } from 'graphql-yoga'
-const Keystore = require('orbit-db-keystore')
 const Identities = require('orbit-db-identity-provider')
-import {OrbitDB} from 'orbit-db'
+const OrbitDB = require('orbit-db')
 const IPFS = require('ipfs')
 
 const typeDefs = `
   type Query {
     hello(name: String): String
     registerIdentity(identityId: String): String
+    determineAddress(identityId: String): String
   }
 `
 
@@ -16,19 +16,28 @@ const config = {
     preload: {
       enabled: false
     },
+    repo: './ipfs',
+    EXPERIMENTAL: {
+      pubsub: true // required, enables pubsub
+    },
     config: {
-      EXPERIMENTAL: {
-        pubsub: true // required, enables pubsub
-      },
       Addresses: {
-        Swarm: ['/dns4/damp-lake-31712.herokuapp.com/tcp/443/wss/p2p-webrtc-star/']
+        Swarm: [
+          // '/dns4/damp-lake-31712.herokuapp.com/tcp/443/wss/p2p-webrtc-star/'
+          '/dns4/ws-star.discovery.libp2p.io/tcp/443/wss/p2p-websocket-star'
+        ]
       }
     }
   }
 }
 
+const accessController = {
+  write: ['*']
+};
 
 let ipfs
+let orbitDb;
+let isLocked: boolean = false;
 
 const resolvers = {
   Query: {
@@ -37,15 +46,50 @@ const resolvers = {
       return returnValue
     },
     registerIdentity: async (_, {identityId}) => {
-      const keystore = new Keystore(`./identities/${identityId}`)
-      const identity = await Identities.createIdentity({ keystore: keystore, id: 'identityId' })
-      const orbitdb = await OrbitDB.createInstance(ipfs, { identity: identity })
-      const db = await orbitdb.eventlog('first-database-litentry')
-      db.load();
-      console.log(db.address.toString())
-      const hash = await db.add({ name: 'test1' })
-
+      if(isLocked) {
+        return 'please try again later, db in using'
+      }
+      try {
+        isLocked = true;
+        const options = {id: identityId};
+        const identity = await Identities.createIdentity(options)
+        orbitDb = await OrbitDB.createInstance(ipfs, {identity: identity})
+        const db = await orbitDb.eventlog(identityId, {
+          accessController
+        })
+        db.events.on('peer.exchanged', async (peer, address, heads) => {
+          console.log('data exchanged!');
+          console.log('address', address, 'head', 'head')
+          await db.close();
+          await orbitDb.disconnect();
+          isLocked = false
+        } );
+        const address = db.address.toString()
+        await db.load();
+        const hash = await db.add({name: 'identity Created'})
+        console.log('hash is', hash);
+        console.log(address)
+        return address
+      } catch (e) {
+        console.log('error' + e);
+        return 'please try again later, db in using'
+      }
 // should always return same identity if you use the same keystore and id
+    },
+    determineAddress : async(_, {identityId}) => {
+      if(isLocked) {
+        return 'please try again later, db in using'
+      }
+      isLocked = true;
+      const options = {id: 'haha'};
+      const identity = await Identities.createIdentity(options)
+      orbitDb = await OrbitDB.createInstance(ipfs, {identity: identity})
+      const dbAddress = await orbitDb.determineAddress(identityId, 'eventlog', {
+        accessController
+      })
+      await orbitDb.disconnect();
+      isLocked = false;
+      return dbAddress.toString();
     }
   }
 }
@@ -58,7 +102,7 @@ const server = new GraphQLServer({
 async function start() {
   try {
     ipfs = await IPFS.create(config.ipfs);
-    // await server.start(() => console.log('Server is running on http://localhost:4000'))
+    await server.start(() => console.log('Server is running on http://localhost:4000'))
   } catch (e) {
     console.log('init error is', e)
   }
