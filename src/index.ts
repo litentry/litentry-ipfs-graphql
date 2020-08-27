@@ -7,6 +7,7 @@ const typeDefs = `
   type Query {
     registerIdentity(identityId: String): String
     determineAddress(identityId: String): String
+    addData(identityId: String, data: String): String
   }
 `
 
@@ -38,6 +39,20 @@ let ipfs
 let orbitDb;
 let isLocked: boolean = false;
 
+const createOrbitInstance = async (identityId: string) => {
+  const options = {id: identityId};
+  const identity = await Identities.createIdentity(options)
+  orbitDb = await OrbitDB.createInstance(ipfs, {identity: identity})
+  return orbitDb;
+}
+
+const accessDb = async (identityId: string) => {
+  const db = await orbitDb.eventlog(identityId, {
+    accessController
+  })
+  return db;
+};
+
 const resolvers = {
   Query: {
     registerIdentity: async (_, {identityId}) => {
@@ -46,12 +61,8 @@ const resolvers = {
       }
       try {
         isLocked = true;
-        const options = {id: identityId};
-        const identity = await Identities.createIdentity(options)
-        orbitDb = await OrbitDB.createInstance(ipfs, {identity: identity})
-        const db = await orbitDb.eventlog(identityId, {
-          accessController
-        })
+        orbitDb = await createOrbitInstance(identityId);
+        const db = await accessDb(identityId);
         // db.events.on('peer.exchanged', async (peer, address, heads) => {
         //   console.log('data exchanged!');
         //   console.log('address', address, 'head', 'head')
@@ -60,13 +71,13 @@ const resolvers = {
         //   isLocked = false
         // } );
         const address = db.address.toString()
-        setTimeout(async ()=> {
-            await db.close();
-            await orbitDb.disconnect();
-            isLocked = false
-        }, 5000)
         await db.load();
         const hash = await db.add({name: 'identity Created'})
+        setTimeout(async ()=> {
+          await db.close();
+          await orbitDb.disconnect();
+          isLocked = false
+        }, 5000)
         console.log('hash is', hash);
         console.log(address)
         return address
@@ -80,15 +91,33 @@ const resolvers = {
         return 'please try again later, db in using'
       }
       isLocked = true;
-      const options = {id: 'haha'};
-      const identity = await Identities.createIdentity(options)
-      orbitDb = await OrbitDB.createInstance(ipfs, {identity: identity})
+      orbitDb = await createOrbitInstance(identityId);
       const dbAddress = await orbitDb.determineAddress(identityId, 'eventlog', {
         accessController
       })
       await orbitDb.disconnect();
       isLocked = false;
       return dbAddress.toString();
+    },
+    addData: async(_, {identityId, data}) => {
+      try {
+        if (isLocked) {
+          return 'please try again later, db in using'
+        }
+        orbitDb = await createOrbitInstance(identityId);
+        const db = await accessDb(identityId);
+        setTimeout(async () => {
+          await db.close();
+          await orbitDb.disconnect();
+          isLocked = false
+        }, 5000)
+        await db.load();
+        const hash = await db.add({data})
+        return data;
+      } catch(e) {
+        console.log('error' + e);
+        return 'please try again later, db in using'
+      }
     }
   }
 }
