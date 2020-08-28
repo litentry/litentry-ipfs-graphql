@@ -1,13 +1,31 @@
-import { GraphQLServer } from 'graphql-yoga'
+import {GraphQLServer} from 'graphql-yoga'
+import EventStore from 'orbit-db-eventstore';
+
 const Identities = require('orbit-db-identity-provider')
 const OrbitDB = require('orbit-db')
 const IPFS = require('ipfs')
+const level = require('level')
+
+const recordKey = 'playgroundRecord';
+const dbName = 'playGroundData'
+const cache = level(dbName, {
+  location:'./playGroundData'
+}, function (err, cacheDb) {
+  if (err)
+    console.log('cache db load error:'+ err);
+  console.log('cache db started');
+})
 
 const typeDefs = `
+  type Record {
+    ${recordKey}: String
+  }
   type Query {
     registerIdentity(identityId: String): String
     determineAddress(identityId: String): String
     addData(identityId: String, data: String): String
+    addDataAddress(address: String, data: String): String
+    getData(identityId: String): [Record]
   }
 `
 
@@ -53,6 +71,19 @@ const accessDb = async (identityId: string) => {
   return db;
 };
 
+type Record = {[recordKey]: string}
+const fetchListDataAndCache = async (identityId: string, db: EventStore<Record>, newData?: Record) => {
+  try {
+    const all = db.iterator({limit: -1})
+      .collect()
+      .map((e) => e.payload.value)
+    all.push(newData);
+    await cache.put(identityId, JSON.stringify(all));
+  } catch(e){
+    console.log('local cache error', e.toString());
+  }
+}
+
 const resolvers = {
   Query: {
     registerIdentity: async (_, {identityId}) => {
@@ -72,7 +103,9 @@ const resolvers = {
         // } );
         const address = db.address.toString()
         await db.load();
-        const hash = await db.add({name: 'identity Created'})
+        const newData = {[recordKey]: 'identity Created'};
+        const hash = await db.add(newData)
+        fetchListDataAndCache(identityId, db, newData)
         setTimeout(async ()=> {
           await db.close();
           await orbitDb.disconnect();
@@ -112,11 +145,23 @@ const resolvers = {
           isLocked = false
         }, 5000)
         await db.load();
-        const hash = await db.add({data})
+        const newData = {[recordKey]: data};
+        await fetchListDataAndCache(identityId, db, newData)
+        const hash = await db.add(newData)
         return data;
       } catch(e) {
         console.log('error' + e);
         return 'please try again later, db in using'
+      }
+    },
+    getData: async(_, {identityId}) => {
+      try {
+        const data = await cache.get(identityId);
+        console.log('data is', JSON.parse(data));
+        return JSON.parse(data);
+      } catch (e){
+        console.log('get request error:', e.toString());
+        return [];
       }
     }
   }

@@ -8,3 +8,5 @@ node_modules
 ipfs/
 orbitdb/
 identities/
+my-db/
+playGroundData/
