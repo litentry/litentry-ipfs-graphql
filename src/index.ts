@@ -183,8 +183,8 @@ async function start() {
         port: 4000,
         endpoint: '/graphql',
         https: {
-          cert: fs.readFileSync('/etc/letsencrypt/archive/graphql.litentry.com/cert1.pem', 'utf8'),
-          key: fs.readFileSync('/etc/letsencrypt/archive/graphql.litentry.com/privkey1.pem', 'utf8')
+          cert: fs.readFileSync('~/certs/graphql.litentry.com/cert1.pem', 'utf8'),
+          key: fs.readFileSync('~/certs/graphql.litentry.com/privkey1.pem', 'utf8')
         },
         getEndpoint: true,
         playground: '/playground',
