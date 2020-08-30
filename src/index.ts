@@ -173,14 +173,31 @@ const server = new GraphQLServer({
 })
 
 async function start() {
+  const environment = process.env.NODE_ENV
+  const isProduction = environment === 'productionn';
   try {
     ipfs = await IPFS.create(config.ipfs);
-    await server.start({
-      port: 4000,
-      endpoint: '/graphql',
-      getEndpoint: true,
-      playground: '/playground',
-    }, () => console.log('Server is running on http://localhost:4000'))
+    if(isProduction) {
+      await server.start({
+        port: 4000,
+        endpoint: '/graphql',
+        https: {
+          cert: '/etc/letsencrypt/archive/graphql.litentry.com/cert1.pem',
+          key: '/etc/letsencrypt/archive/graphql.litentry.com/privkey1.pem'
+        },
+        getEndpoint: true,
+        playground: '/playground',
+      }, () => console.log('Server is running on http://localhost:4000'))
+    } else {
+      if(isProduction) {
+        await server.start({
+          port: 4000,
+          endpoint: '/graphql',
+          getEndpoint: true,
+          playground: '/playground',
+        }, () => console.log('Server is running on http://localhost:4000'))
+      }
+    }
   } catch (e) {
     console.log('init error is', e)
   }
