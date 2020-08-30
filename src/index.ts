@@ -5,6 +5,7 @@ const Identities = require('orbit-db-identity-provider')
 const OrbitDB = require('orbit-db')
 const IPFS = require('ipfs')
 const level = require('level')
+const fs = require('fs')
 
 const recordKey = 'playgroundRecord';
 const dbName = 'playGroundData'
@@ -182,8 +183,8 @@ async function start() {
         port: 4000,
         endpoint: '/graphql',
         https: {
-          cert: '/etc/letsencrypt/archive/graphql.litentry.com/cert1.pem',
-          key: '/etc/letsencrypt/archive/graphql.litentry.com/privkey1.pem'
+          cert: fs.readFileSync('/etc/letsencrypt/archive/graphql.litentry.com/cert1.pem', 'utf8'),
+          key: fs.readFileSync('/etc/letsencrypt/archive/graphql.litentry.com/privkey1.pem', 'utf8')
         },
         getEndpoint: true,
         playground: '/playground',
