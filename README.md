@@ -1,63 +1,42 @@
-<h1 align="center"><strong>Boilerplate for a Minimal GraphQL Server w/ TypeScript</strong></h1>
-
-<br />
-
-<div align="center"><img src="https://imgur.com/1MfnLVl.png" /></div>
-
-<div align="center"><strong>🚀 Bootstrap your GraphQL server within seconds</strong></div>
-<div align="center">Minimal starter kit for a flexible GraphQL server for TypeScript - based on best practices from the GraphQL community.</div>
-
-## Features
-
-- **Scalable GraphQL server:** The server uses [`graphql-yoga`](https://github.com/prisma/graphql-yoga) which is based on Apollo Server & Express
-- **Tooling**: Out-of-the-box support for [GraphQL Playground](https://github.com/prisma/graphql-playground) & [query performance tracing](https://github.com/apollographql/apollo-tracing)
-- **Simple Hello World example:** Where it either returns `Hello <name>!` or `Hello World!` if no name argument is provided.
-- **No configuration overhead**: Preconfigured [`graphql-config`](https://github.com/prisma/graphql-config) setup
-
-Read more about the idea behind GraphQL boilerplates [here](https://blog.graph.cool/graphql-boilerplates-graphql-create-how-to-setup-a-graphql-project-6428be2f3a5).
-  
-## Requirements
-
-You need to have the [GraphQL CLI](https://github.com/graphql-cli/graphql-cli) installed to bootstrap your GraphQL server using `graphql create`:
-
-```sh
-npm install -g graphql-cli
-```
+# Litentry Graphql Caching Server
 
 ## Getting started
 
-```sh
-# 1. Bootstrap GraphQL server in directory `my-app`, based on `typescript-basic` boilerplate
-graphql create my-app --boilerplate typescript-minimal
-
-# 2. Run yarn install or npm install
-
-# 3. Navigate to the new project
-cd my-app
-
-# 4. Start server (runs on http://localhost:4000) and open GraphQL Playground
-yarn dev
+```
+yarn start
 ```
 
 ![](https://imgur.com/hElq68i.png)
 
+
+For Javascript applications, please use [Litentry SDK](https://github.com/litentry/litentry-sdk) to interact with Server! we have already wrapped the function there
+
 ## Documentation
 
-### Commands
+Query types
 
-* `yarn start` or `npm run start` starts GraphQL server on `http://localhost:4000`
-* `yarn dev` or `npm run dev` starts GraphQL server on `http://localhost:4000` _and_ opens GraphQL Playground
+```typescript
+  type Record {
+    ${recordKey}: String
+  }
 
-### Project structure
+  type Query {
+    registerIdentity(identityId: String): String
+    determineAddress(identityId: String): String
+    addData(identityId: String, data: String): String
+    addDataAddress(address: String, data: String): String
+    getData(identityId: String): [Record]
+  }
+```
 
-| File name 　　　　　　　　　　　　　　| Description 　　　　　　　　<br><br>| 
-| :--  | :--         |
-| `└── src ` (_directory_) | _Contains the source files for your GraphQL server_ |
-| `　　├── index.ts` | The entry point for your GraphQL server |
+Example for query `playgroundRecord` data of certain identity  
 
+```
+https://graphql.litentry.com:4000/graphql?query={getData(identityId:"0x992c710c7fba11ccd22a2fbfec1af6ea85d488807e63e10cbbd16256fcf95752"){playgroundRecord}}
+```
 
-## Contributing
+query IPFS address of certain identity
+```
+https://graphql.litentry.com:4000/graphql?query={determineAddress(identityId:"0x992c710c7fba11ccd22a2fbfec1af6ea85d488807e63e10cbbd16256fcf95752")}
+``
 
-The GraphQL boilerplates are maintained by the GraphQL community, with official support from the [Apollo](https://dev-blog.apollodata.com) & [Graphcool](https://blog.graph.cool/) teams.
-
-Your feedback is **very helpful**, please share your opinion and thoughts! If you have any questions or want to contribute yourself, join the [`#graphql-boilerplate`](https://graphcool.slack.com/messages/graphql-boilerplate) channel on our [Slack](https://graphcool.slack.com/).
